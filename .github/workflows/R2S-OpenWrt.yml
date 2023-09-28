@@ -115,6 +115,20 @@ jobs:
         cd openwrt && make -j1 V=s
     - name: Print Disk Space After
       run: df -h
+    - name: Prepare ImageBuilder Docker image files
+      run: |
+        /bin/bash 08_prepare_ib.sh
+        build_day=$(date +%Y-%m-%d)
+        echo "build_day=${build_day}" >>$GITHUB_ENV
+    - name: Build and release ImageBuilder Docker images
+      uses: docker/build-push-action@v4
+      with:
+        platforms: linux/amd64
+        target: IMAGEBUILDER
+        tags: |
+          ghcr.io/${{ env.GITHUB_REPOSITORY }}-imagebuilder:R2S-${{ env.latest_release }}-${{ env.build_day }}
+          ghcr.io/${{ env.GITHUB_REPOSITORY }}-imagebuilder:R2S-${{ env.latest_release }}-latest
+        push: true
     - name: Organize files
       id: organize
       run: |
