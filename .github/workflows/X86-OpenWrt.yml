@@ -118,17 +118,28 @@ jobs:
     - name: Prepare ImageBuilder Docker image files
       run: |
         /bin/bash 08_prepare_ib.sh
-        build_day=$(date +%Y-%m-%d)
-        echo "build_day=${build_day}" >>$GITHUB_ENV
+        image_base="${{ github.repository }}-imagebuilder:X86-${{ env.latest_release }}"
+        image_base=$(echo $image_base | awk '{print tolower($0)}')
+        versioned_image="${image_base}-$(date +%Y-%m-%d)"
+        latest_image="${image_base}-latest"
+        echo "versioned_image=${versioned_image}" >>$GITHUB_ENV
+        echo "latest_image=${latest_image}" >>$GITHUB_ENV
+    - name: Login to GitHub Container Registry
+      uses: docker/login-action@v3
+      with:
+        registry: ghcr.io
+        username: ${{ github.repository_owner }}
+        password: ${{ secrets.GITHUB_TOKEN }}
     - name: Build and release ImageBuilder Docker images
       uses: docker/build-push-action@v4
       with:
         platforms: linux/amd64
-        target: IMAGEBUILDER
+        context: ./IMAGEBUILDER
         tags: |
-          ghcr.io/${{ env.GITHUB_REPOSITORY }}-imagebuilder:X86-${{ env.latest_release }}-${{ env.build_day }}
-          ghcr.io/${{ env.GITHUB_REPOSITORY }}-imagebuilder:X86-${{ env.latest_release }}-latest
+          ghcr.io/${{ env.versioned_image }}
+          ghcr.io/${{ env.latest_image }}
         push: true
+
     - name: Organize files
       id: organize
       run: |
