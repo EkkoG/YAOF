@@ -116,6 +116,35 @@ jobs:
         cd openwrt && make -j1 V=s
     - name: Print Disk Space After
       run: df -h
+    - name: Organize files
+      id: organize
+      run: |
+        rm -rf ./artifact/
+        mkdir -p ./artifact/
+        mv openwrt/bin/targets/x86/64/*combined-efi.img* ./artifact/
+        file=$(find . | grep "imagebuilder-.*x86_64.tar.xz" | head -n 1)
+        mv $file ./artifact/
+        cd ./artifact/
+        ls -Ahl
+        gzip -d *.gz && exit 0
+        gzip --best *.img
+        ls -Ahl
+        sha256sum openwrt*x86* | tee X86-GC404-$(date +%Y-%m-%d)-${{ env.latest_release }}.sha256sum
+        zip X86-GC404-Docker-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip *ext4-combined*
+        zip X86-GC404-Docker-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip *squashfs-combined*
+        ls -Ahl
+    - name: Create release
+      id: create_release
+      uses: ncipollo/release-action@v1.12.0
+      with:
+        name: OpenWRT-${{ env.latest_release }}
+        allowUpdates: true
+        prerelease: false
+        tag: ${{ env.latest_release }}
+        commit: 23.05
+        replacesArtifacts: true
+        token: ${{ secrets.GITHUB_TOKEN }}
+        artifacts: ./artifact/*.zip
     - name: Prepare ImageBuilder Docker image files
       run: |
         /bin/bash 08_prepare_ib.sh
@@ -140,31 +169,3 @@ jobs:
           ghcr.io/${{ env.versioned_image }}
           ghcr.io/${{ env.latest_image }}
         push: true
-
-    - name: Organize files
-      id: organize
-      run: |
-        rm -rf ./artifact/
-        mkdir -p ./artifact/
-        mv openwrt/bin/targets/x86/64/*combined-efi.img* ./artifact/
-        cd ./artifact/
-        ls -Ahl
-        gzip -d *.gz && exit 0
-        gzip --best *.img
-        ls -Ahl
-        sha256sum openwrt*x86* | tee X86-GC404-$(date +%Y-%m-%d)-${{ env.latest_release }}.sha256sum
-        zip X86-GC404-Docker-$(date +%Y-%m-%d)-${{ env.latest_release }}-ext4.zip *ext4-combined*
-        zip X86-GC404-Docker-$(date +%Y-%m-%d)-${{ env.latest_release }}-sfs.zip *squashfs-combined*
-        ls -Ahl
-    - name: Create release
-      id: create_release
-      uses: ncipollo/release-action@v1.12.0
-      with:
-        name: OpenWRT-${{ env.latest_release }}
-        allowUpdates: true
-        prerelease: false
-        tag: ${{ env.latest_release }}
-        commit: 23.05
-        replacesArtifacts: true
-        token: ${{ secrets.GITHUB_TOKEN }}
-        artifacts: ./artifact/*.zip
